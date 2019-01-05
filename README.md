@@ -62,7 +62,7 @@ Hay que buscar [aquí](https://github.com/opencv/opencv/releases) el release que
 
 ```
 cd ~
-wget -c https://github.com/opencv/opencv/archive/3.4.3.tar.gz
+wget -c https://github.com/opencv/opencv/archive/3.4.3.tar.gz -O opencv-3.4.3.tar.gz
 tar -xvf opencv-3.4.3.tar.gz
 ```
 
@@ -70,8 +70,8 @@ Descargamos los `contribs` de OpenCV para tener funcionalidades extras. Las vers
 
 ```
 cd ~
-wget -c https://github.com/opencv/opencv_contrib/archive/3.4.3.tar.gz
-tar -xvf opencv_contrib-3.4.3.tar
+wget -c https://github.com/opencv/opencv_contrib/archive/3.4.3.tar.gz -O opencv_contrib-3.4.3.tar.gz
+tar -xvf opencv_contrib-3.4.3.tar.gz
 ```
 
 
