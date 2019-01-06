@@ -36,6 +36,7 @@ def get_centroid(x, y, w, h):
 
 def main(**kwargs):
 
+    headless = kwargs.get('headless')
     stepper = kwargs.get('stepper')
     confidence_ts = float(kwargs.get('confidence', 0.6))
     show_person_id = kwargs.get('showid')
@@ -196,18 +197,19 @@ def main(**kwargs):
         if writer is not None:
             writer.write(frame)
 
-        cv2.imshow('Frame', frame)
-        #cv2.imshow('Mask', mask)
+        if not headless:
+            cv2.imshow('Frame', frame)
+            #cv2.imshow('Mask', mask)
 
-        # Espera "n" para continuar
-        if stepper:
-            cv2.waitKey()
+            # Espera "n" para continuar
+            if stepper:
+                cv2.waitKey()
 
-        
-        #preisonar ESC para salir
-        k = cv2.waitKey(30) & 0xff
-        if k == 27:
-            break 
+            
+            #preisonar ESC para salir
+            k = cv2.waitKey(30) & 0xff
+            if k == 27:
+                break 
 
     # check to see if we need to release the video writer pointer
     if writer is not None:
@@ -230,6 +232,7 @@ if __name__ == '__main__':
     ap.add_argument("-s", "--showid", action='store_true', help="Show ID of tacked objects")
     ap.add_argument("-t", "--stepper", action='store_true', help="Step by step")
     ap.add_argument("-c", "--confidence", type=float, default=0.6, help="Confidence threshold, default 0.6")
+    ap.add_argument("-H", "--headless", action="store_true", help="Headless, run silently")
     kwargs = vars(ap.parse_args())
 
     main(**kwargs)
