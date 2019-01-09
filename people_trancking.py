@@ -187,7 +187,7 @@ def main(**kwargs):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,0,0), 1, cv2.LINE_AA)
 
 
-        if show_person_id:
+        if show_person_id and len(persons):
             person = persons[0]
             cv2.putText(frame, "P {} A {}".format(str(person.id)[:4], person.age),
                     (person.v1[0], person.v1[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,0), 1, cv2.LINE_AA)
@@ -228,11 +228,12 @@ if __name__ == '__main__':
     ap.add_argument("-o", "--output", type=str, help="path to optional output video file")
     ap.add_argument("-p", "--prototxt", required=True, help="path to Caffe 'deploy' prototxt file")
     ap.add_argument("-m", "--model", required=True, help="path to Caffe pre-trained model")
-    ap.add_argument("-r", "--resize", help="Resize to n%, default 75%")
+    ap.add_argument("-r", "--resize", help="Resize in percent default 75%%")
     ap.add_argument("-s", "--showid", action='store_true', help="Show ID of tacked objects")
     ap.add_argument("-t", "--stepper", action='store_true', help="Step by step")
     ap.add_argument("-c", "--confidence", type=float, default=0.6, help="Confidence threshold, default 0.6")
     ap.add_argument("-H", "--headless", action="store_true", help="Headless, run silently")
+
     kwargs = vars(ap.parse_args())
 
     main(**kwargs)
