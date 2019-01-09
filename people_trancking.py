@@ -6,6 +6,7 @@ import time
 import argparse
 
 
+
 # initialize the list of class labels MobileNet SSD was trained to
 # detect
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
@@ -47,6 +48,7 @@ def main(**kwargs):
     print("Source %s" % _input)
     
     cap = cv2.VideoCapture(_input)
+    cap.set(cv2.CAP_PROP_FPS, 60)
 
     # load our serialized model from disk
     print("[INFO] loading model...")
@@ -61,9 +63,7 @@ def main(**kwargs):
     W, H = (None, None)
     writer = None
 
-
     fps = cap.get(5)
-
 
     persons = []
     #id = 0
@@ -71,9 +71,9 @@ def main(**kwargs):
     
     iteration = 0
 
-    frames = int(fps/6)
+    frames = 5 #int(fps/32)
 
-    print("Iterate over {} fps".format(frames))
+    print("Iterate over {} fps".format(fps))
 
     while(cap.isOpened()):
         iteration += 1
@@ -87,7 +87,7 @@ def main(**kwargs):
 
 
         if writer is None and output:
-            fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+            fourcc = cv2.VideoWriter_fourcc(*"MJPG") #MJPG
             writer = cv2.VideoWriter(output, fourcc, fps, (W, H), True)
 
         # age every person one frame
@@ -95,8 +95,8 @@ def main(**kwargs):
         #    p.age_one()
 
 
-        if iteration % frames:
-            continue 
+        #if frames and iteration % frames:
+        #    continue 
 
         # convert the frame to a blob and pass the blob through the
         # network and obtain the detections
@@ -151,7 +151,7 @@ def main(**kwargs):
 
                 if new_person:
                     #id += 1
-                    person = Person( (startX, startY), (endX, endY), 10*frames )
+                    person = Person( (startX, startY), (endX, endY), 10*fps )
                     persons.append(person)
 
 
@@ -210,6 +210,7 @@ def main(**kwargs):
             k = cv2.waitKey(30) & 0xff
             if k == 27:
                 break 
+
 
     # check to see if we need to release the video writer pointer
     if writer is not None:

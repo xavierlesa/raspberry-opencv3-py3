@@ -30,8 +30,8 @@ cnt_down = 0
 cap = cv2.VideoCapture(args["input"])
 
 #Imprime las propiedades de captura a consola
-#for i in range(19):
-#    print(i, cap.get(i))
+for i in range(19):
+    print(i, cap.get(i))
 
 w = cap.get(3)
 
