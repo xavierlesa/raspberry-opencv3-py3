@@ -47,18 +47,19 @@ def main(**kwargs):
 
     print("Source %s" % _input)
     
+    # TODO: pasar a Camera ya que es mas rapido el proceso
     cap = cv2.VideoCapture(_input)
-    cap.set(cv2.CAP_PROP_FPS, 60)
+    # cap.set(cv2.CAP_PROP_FPS, 60)
 
     # load our serialized model from disk
     print("[INFO] loading model...")
     net = cv2.dnn.readNetFromCaffe(kwargs["prototxt"], kwargs["model"])
     
     # Substraction Maks
-    #fgbg = cv2.createBackgroundSubtractorMOG2(detectShadows = True)
+    # fgbg = cv2.createBackgroundSubtractorMOG2(detectShadows = True)
 
-    #kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    #kernel = np.ones((3,3), np.uint8)
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    # kernel = np.ones((3,3), np.uint8)
 
     W, H = (None, None)
     writer = None
@@ -71,7 +72,7 @@ def main(**kwargs):
     
     iteration = 0
 
-    frames = 5 #int(fps/32)
+    # frames = 5 #int(fps/32)
 
     print("Iterate over {} fps".format(fps))
 
@@ -113,7 +114,7 @@ def main(**kwargs):
             # with the prediction
             confidence = detections[0, 0, i, 2]
 
-            if confidence > confidence_ts:
+            if confidence >= confidence_ts:
 
                 idx = int(detections[0, 0, i, 1])
                 
