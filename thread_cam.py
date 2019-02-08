@@ -6,6 +6,7 @@ import cv2
 import datetime
 import logging
 import numpy as np
+import os
 import resource
 import signal
 import sys
@@ -24,6 +25,7 @@ FORMAT = "[%(levelname)s] %(asctime)s : %(message)s"
 logging.basicConfig(level=logging.DEBUG, format=FORMAT)
 log = logging.getLogger(__name__)
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 class FPS:
     def __init__(self):
@@ -76,7 +78,8 @@ class CamVideoStream(ThreadStreamMixing):
         self.camera = PiCamera()
         self.camera.resolution = resolution
         self.camera.framerate = framerate
-        self.camera.rotation = 90
+        self.camera.rotation = rotation
+
         if grayscale:
             self.camera.color_effects = (128, 128)
 
@@ -111,10 +114,10 @@ class FileVideoStream(ThreadStreamMixing):
 
 
 class VideoStream:
-    def __init__(self, src=0, pi_cam=False, resolution=(320,240), framerate=32):
+    def __init__(self, src=0, pi_cam=False, resolution=(320,240), framerate=32, rotation=0):
 
         if pi_cam:
-            self.stream = CamVideoStream(resolution=resolution, framerate=framerate)
+            self.stream = CamVideoStream(resolution=resolution, framerate=framerate, rotation=rotation)
         else:
             self.stream = FileVideoStream(src)
 
@@ -150,10 +153,23 @@ class ImageProcessor:
 
     PROCESS_HOG = 'hog'
     PROCESS_MOG = 'mog'
+    PROCESS_DNN = 'dnn'
+
+
+    DNN_CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
+            "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+	    "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
+	    "sofa", "train", "tvmonitor"]
+
 
     def __init__(self, resolution, process_type='hog', **kwargs):
 
         self.process_type = process_type
+
+        self.min_area = kwargs.get('min_area', 5)
+        self.max_area = kwargs.get('max_area', 40)
+
+        print("process_type %s, areas %s, %s" % (self.process_type, self.min_area, self.max_area))
 
         # initialize the HOG descriptor/person detector
         if self.process_type == self.PROCESS_HOG:
@@ -167,6 +183,12 @@ class ImageProcessor:
             self.kernelOp = np.ones((3,3), np.uint8)
             #kernelOp2 = np.ones((5,5),np.uint8)
             self.kernelCl = np.ones((8, 8), np.uint8)
+        
+        elif self.process_type == self.PROCESS_DNN:
+            # Inicia DNN
+            prototxt = "mobilenet_ssd/MobileNetSSD_deploy.prototxt"
+            model = "mobilenet_ssd/MobileNetSSD_deploy.caffemodel"
+            self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
 
         self.resolution = resolution
         self.frame = None
@@ -175,6 +197,8 @@ class ImageProcessor:
             _target = self.process_hog
         elif self.process_type == self.PROCESS_MOG:
             _target = self.process_mog
+        elif self.process_type == self.PROCESS_DNN:
+            _target = self.process_dnn
         else:
             _target = self.process_mog
 
@@ -199,13 +223,19 @@ class ImageProcessor:
                 continue
 
             # detect people in the image
-            (rects, weights) = self.hog.detectMultiScale(self.frame, winStride=(4, 4), padding=(8, 8), scale=1.05)
+            (rects, weights) = self.hog.detectMultiScale(self.frame, winStride=(4,4), padding=(8,8), scale=1.05)
         
             if len(rects) > 0:
                 log.debug("detected {} peoples".format(len(rects)))
+
                 # draw bounding boxes
                 for (x, y, w, h) in rects:
                     self.frame = cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+                cv2.imwrite("{}/objects/{}-{}-{}.jpg".format(current_dir, datetime.datetime.now().isoformat(), 
+                    "HOG", len(rects)), self.frame)
+
+
 
     def process_mog(self):
         while True:
@@ -215,8 +245,9 @@ class ImageProcessor:
             if self.frame is None:
                 continue
 
-            self.areath_min = self.resolution[0] * self.resolution[1] / 40
-            self.areath_max = self.resolution[0] * self.resolution[1] / 5
+            self.areath_min = self.max_area
+            self.areath_max = self.min_area
+
             mask = self.fgbg.apply(self.frame)
             try:
                 mask = cv2.threshold(mask, 200, 255, cv2.THRESH_BINARY)[1]
@@ -241,25 +272,73 @@ class ImageProcessor:
                         
                         self.frame = cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
+                        cv2.imwrite("{}/objects/{}-{}-x{}-y{}.jpg".format(current_dir, datetime.datetime.now().isoformat(), 
+                            "unknow", x, y), self.frame)
+
+    def process_dnn(self):
+        while True:
+            if self._target_stop:
+                return
+            
+            if self.frame is None:
+                continue
+        
+            blob = cv2.dnn.blobFromImage(self.frame, 0.007843, self.resolution, 127.5)
+            self.net.setInput(blob)
+            detections = self.net.forward()
+
+            #log.debug("Positive detections %s", detections.shape[2])
+
+            # loop over the detections
+            for i in np.arange(0, detections.shape[2]):
+                # extract the confidence (i.e., probability) associated
+                # with the prediction
+                confidence = detections[0, 0, i, 2]
+
+                if confidence >= 0.65:
+                    idx = int(detections[0, 0, i, 1])
+
+                    # for the object
+                    box = detections[0, 0, i, 3:7] * np.array([*self.resolution, *self.resolution])
+                    (startX, startY, endX, endY) = box.astype("int")
+                    # Log detection
+                    log.debug("{} detected at {},{}".format(self.DNN_CLASSES[idx], startX, startY))
+
+                    image = cv2.rectangle(self.frame, (startX, startY), (endX, endY), (0,255,0), 2)
+                    cv2.imwrite("{}/objects/{}-{}-x{}-y{}.jpg".format(current_dir, datetime.datetime.now().isoformat(), 
+                        self.DNN_CLASSES[idx], startX, startY), image)
+
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=False, help="Source input, default camera")
     ap.add_argument("-p", "--process", required=False, help="Processs with (HOG, MOG), default no process")
-    ap.add_argument("-P", "--preview", default=False, help="Preview (require connect to X server")
+    ap.add_argument("-P", "--preview", action='store_true', default=False, help="Preview (require connect to X server")
     ap.add_argument("-f", "--framerate", default=30, help="Framerate, default 30")
+    ap.add_argument("-r", "--rotation", default=0, help="Rotation, default 0")
+
+    ap.add_argument("--minarea", default=5, help="Min area detection")
+    ap.add_argument("--maxarea", default=50, help="Max area detection")
+
     args = vars(ap.parse_args())
+
+    resolution = (320, 240) # 76800    
 
     process = args.get('process')
     preview = args.get('preview')
     framerate = int(args.get('framerate'))
+    rotation = int(args.get('rotation'))
 
-    resolution = (320, 240)
+    total_area = resolution[0] * resolution[1] 
+
+    min_area = total_area / int(args.get('minarea'))
+    max_area = total_area / int(args.get('maxarea'))
 
     log.info("starting video file thread...")
-    vs = VideoStream(pi_cam=True, resolution=resolution, framerate=framerate).start()
+    vs = VideoStream(pi_cam=True, resolution=resolution, framerate=framerate, rotation=rotation).start()
     if process:
-        ip = ImageProcessor(resolution, process.lower())
+        ip = ImageProcessor(resolution, process.lower(), min_area=min_area, max_area=max_area)
 
     # ImageShow threading
     #im = ImageShow().start()
@@ -302,6 +381,7 @@ def main():
     # do a bit of cleanup
     if process:
         ip.target_stop()
+
     #im.stop()
     vs.stop()
     cv2.destroyAllWindows()
