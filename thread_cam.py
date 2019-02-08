@@ -272,8 +272,8 @@ class ImageProcessor:
                         
                         self.frame = cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-                        cv2.imwrite("{}/objects/{}-{}-x{}-y{}.jpg".format(current_dir, datetime.datetime.now().isoformat(), 
-                            "unknow", x, y), self.frame)
+                        cv2.imwrite("{}/objects/{}-{}-a{}.jpg".format(current_dir, datetime.datetime.now().isoformat(), 
+                            "MOG", area), self.frame)
 
     def process_dnn(self):
         while True:
@@ -342,6 +342,8 @@ def main():
 
     # ImageShow threading
     #im = ImageShow().start()
+    #out = cv2.VideoWriter("{}/objects/{}-{}-video.avi".format(current_dir, datetime.datetime.now().isoformat(), process), 
+    #        cv2.VideoWriter_fourcc(*'XDIV'), 20.0, resolution)
 
     # allow the camera to warmup
     time.sleep(1)
@@ -361,6 +363,9 @@ def main():
             #im.set_frame(frame)
             cv2.imshow("preview", frame)
 
+        # save video
+        #out.write(frame)
+
         fps.update()
 
         # if the `q` key was pressed, break from the loop
@@ -369,6 +374,7 @@ def main():
             if process:
                 ip.target_stop()
             #im.stop()
+            #out.release()
             vs.stop()
             cv2.destroyAllWindows()
             break
@@ -383,6 +389,7 @@ def main():
         ip.target_stop()
 
     #im.stop()
+    #out.release()
     vs.stop()
     cv2.destroyAllWindows()
 
